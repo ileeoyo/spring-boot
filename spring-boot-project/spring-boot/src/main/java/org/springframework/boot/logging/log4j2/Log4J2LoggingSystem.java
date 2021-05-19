@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2020 the original author or authors.
+ * Copyright 2012-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,7 +47,10 @@ import org.springframework.boot.logging.LogLevel;
 import org.springframework.boot.logging.LoggerConfiguration;
 import org.springframework.boot.logging.LoggingInitializationContext;
 import org.springframework.boot.logging.LoggingSystem;
+import org.springframework.boot.logging.LoggingSystemFactory;
 import org.springframework.boot.logging.Slf4JLoggingSystem;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ResourceUtils;
@@ -211,16 +214,37 @@ public class Log4J2LoggingSystem extends Slf4JLoggingSystem {
 
 	@Override
 	public void setLogLevel(String loggerName, LogLevel logLevel) {
-		Level level = LEVELS.convertSystemToNative(logLevel);
+		setLogLevel(loggerName, LEVELS.convertSystemToNative(logLevel));
+	}
+
+	private void setLogLevel(String loggerName, Level level) {
 		LoggerConfig logger = getLogger(loggerName);
+		if (level == null) {
+			clearLogLevel(loggerName, logger);
+		}
+		else {
+			setLogLevel(loggerName, logger, level);
+		}
+		getLoggerContext().updateLoggers();
+	}
+
+	private void clearLogLevel(String loggerName, LoggerConfig logger) {
+		if (logger instanceof LevelSetLoggerConfig) {
+			getLoggerContext().getConfiguration().removeLogger(loggerName);
+		}
+		else {
+			logger.setLevel(null);
+		}
+	}
+
+	private void setLogLevel(String loggerName, LoggerConfig logger, Level level) {
 		if (logger == null) {
-			logger = new LoggerConfig(loggerName, level, true);
-			getLoggerContext().getConfiguration().addLogger(loggerName, logger);
+			getLoggerContext().getConfiguration().addLogger(loggerName,
+					new LevelSetLoggerConfig(loggerName, level, true));
 		}
 		else {
 			logger.setLevel(level);
 		}
-		getLoggerContext().updateLoggers();
 	}
 
 	@Override
@@ -255,7 +279,7 @@ public class Log4J2LoggingSystem extends Slf4JLoggingSystem {
 	}
 
 	private String getSubName(String name) {
-		if (StringUtils.isEmpty(name)) {
+		if (!StringUtils.hasLength(name)) {
 			return null;
 		}
 		int nested = name.lastIndexOf('$');
@@ -322,6 +346,36 @@ public class Log4J2LoggingSystem extends Slf4JLoggingSystem {
 		@Override
 		public void run() {
 			getLoggerContext().stop();
+		}
+
+	}
+
+	/**
+	 * {@link LoggingSystemFactory} that returns {@link Log4J2LoggingSystem} if possible.
+	 */
+	@Order(Ordered.LOWEST_PRECEDENCE)
+	public static class Factory implements LoggingSystemFactory {
+
+		private static final boolean PRESENT = ClassUtils
+				.isPresent("org.apache.logging.log4j.core.impl.Log4jContextFactory", Factory.class.getClassLoader());
+
+		@Override
+		public LoggingSystem getLoggingSystem(ClassLoader classLoader) {
+			if (PRESENT) {
+				return new Log4J2LoggingSystem(classLoader);
+			}
+			return null;
+		}
+
+	}
+
+	/**
+	 * {@link LoggerConfig} used when the user has set a specific {@link Level}.
+	 */
+	private static class LevelSetLoggerConfig extends LoggerConfig {
+
+		LevelSetLoggerConfig(String name, Level level, boolean additive) {
+			super(name, level, additive);
 		}
 
 	}

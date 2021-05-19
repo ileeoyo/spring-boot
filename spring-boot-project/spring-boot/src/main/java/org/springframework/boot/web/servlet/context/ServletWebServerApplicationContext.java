@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2020 the original author or authors.
+ * Copyright 2012-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,6 +40,7 @@ import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.boot.availability.AvailabilityChangeEvent;
 import org.springframework.boot.availability.ReadinessState;
 import org.springframework.boot.web.context.ConfigurableWebServerApplicationContext;
+import org.springframework.boot.web.context.WebServerGracefulShutdownLifecycle;
 import org.springframework.boot.web.server.WebServer;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.boot.web.servlet.ServletContextInitializer;
@@ -49,6 +50,7 @@ import org.springframework.boot.web.servlet.server.ServletWebServerFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextException;
 import org.springframework.core.io.Resource;
+import org.springframework.core.metrics.StartupStep;
 import org.springframework.util.StringUtils;
 import org.springframework.web.context.ContextLoaderListener;
 import org.springframework.web.context.ServletContextAware;
@@ -174,8 +176,11 @@ public class ServletWebServerApplicationContext extends GenericWebApplicationCon
 		WebServer webServer = this.webServer;
 		ServletContext servletContext = getServletContext();
 		if (webServer == null && servletContext == null) {
+			StartupStep createWebServer = this.getApplicationStartup().start("spring.boot.webserver.create");
 			ServletWebServerFactory factory = getWebServerFactory();
+			createWebServer.tag("factory", factory.getClass().toString());
 			this.webServer = factory.getWebServer(getSelfInitializer());
+			createWebServer.end();
 			getBeanFactory().registerSingleton("webServerGracefulShutdown",
 					new WebServerGracefulShutdownLifecycle(this.webServer));
 			getBeanFactory().registerSingleton("webServerStartStop",

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2019 the original author or authors.
+ * Copyright 2012-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,6 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Mono;
 
-import org.springframework.beans.BeansException;
 import org.springframework.boot.actuate.autoconfigure.endpoint.EndpointAutoConfiguration;
 import org.springframework.boot.actuate.autoconfigure.endpoint.web.WebEndpointAutoConfiguration;
 import org.springframework.boot.actuate.autoconfigure.env.EnvironmentEndpointAutoConfiguration;
@@ -65,7 +64,7 @@ import static org.mockito.Mockito.mock;
  */
 class ReactiveManagementWebSecurityAutoConfigurationTests {
 
-	private ReactiveWebApplicationContextRunner contextRunner = new ReactiveWebApplicationContextRunner()
+	private final ReactiveWebApplicationContextRunner contextRunner = new ReactiveWebApplicationContextRunner()
 			.withConfiguration(AutoConfigurations.of(HealthContributorAutoConfiguration.class,
 					HealthEndpointAutoConfiguration.class, InfoEndpointAutoConfiguration.class,
 					EnvironmentEndpointAutoConfiguration.class, EndpointAutoConfiguration.class,
@@ -76,11 +75,6 @@ class ReactiveManagementWebSecurityAutoConfigurationTests {
 	@Test
 	void permitAllForHealth() {
 		this.contextRunner.run((context) -> assertThat(getAuthenticateHeader(context, "/actuator/health")).isNull());
-	}
-
-	@Test
-	void permitAllForInfo() {
-		this.contextRunner.run((context) -> assertThat(getAuthenticateHeader(context, "/actuator/info")).isNull());
 	}
 
 	@Test
@@ -164,7 +158,7 @@ class ReactiveManagementWebSecurityAutoConfigurationTests {
 	static class CustomSecurityConfiguration {
 
 		@Bean
-		SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) throws Exception {
+		SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
 			http.authorizeExchange((exchanges) -> {
 				exchanges.pathMatchers("/foo").permitAll();
 				exchanges.anyExchange().authenticated();
@@ -184,7 +178,7 @@ class ReactiveManagementWebSecurityAutoConfigurationTests {
 		}
 
 		@Bean
-		WebFilterChainProxy webFilterChainProxy(ServerHttpSecurity http) throws Exception {
+		WebFilterChainProxy webFilterChainProxy(ServerHttpSecurity http) {
 			return new WebFilterChainProxy(getFilterChains(http));
 		}
 
@@ -195,7 +189,7 @@ class ReactiveManagementWebSecurityAutoConfigurationTests {
 			return httpSecurity;
 		}
 
-		private List<SecurityWebFilterChain> getFilterChains(ServerHttpSecurity http) throws Exception {
+		private List<SecurityWebFilterChain> getFilterChains(ServerHttpSecurity http) {
 			http.authorizeExchange((exchanges) -> exchanges.anyExchange().authenticated());
 			http.formLogin(Customizer.withDefaults());
 			return Collections.singletonList(http.build());
@@ -204,7 +198,7 @@ class ReactiveManagementWebSecurityAutoConfigurationTests {
 		static class TestServerHttpSecurity extends ServerHttpSecurity implements ApplicationContextAware {
 
 			@Override
-			public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+			public void setApplicationContext(ApplicationContext applicationContext) {
 				super.setApplicationContext(applicationContext);
 			}
 

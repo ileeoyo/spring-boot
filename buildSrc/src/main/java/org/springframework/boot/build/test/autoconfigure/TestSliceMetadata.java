@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2020 the original author or authors.
+ * Copyright 2012-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,6 +39,7 @@ import org.gradle.api.Task;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.tasks.OutputFile;
+import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.TaskAction;
 
@@ -62,8 +63,10 @@ public class TestSliceMetadata extends DefaultTask {
 	private File outputFile;
 
 	public TestSliceMetadata() {
-		getInputs().dir((Callable<File>) () -> this.sourceSet.getOutput().getResourcesDir());
-		getInputs().files((Callable<FileCollection>) () -> this.sourceSet.getOutput().getClassesDirs());
+		getInputs().dir((Callable<File>) () -> this.sourceSet.getOutput().getResourcesDir())
+				.withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("resources");
+		getInputs().files((Callable<FileCollection>) () -> this.sourceSet.getOutput().getClassesDirs())
+				.withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("classes");
 	}
 
 	public void setSourceSet(SourceSet sourceSet) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2020 the original author or authors.
+ * Copyright 2012-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -233,12 +233,13 @@ class PropertiesLauncherTests {
 
 	@Test
 	void testUserSpecifiedNestedJarPath() throws Exception {
-		System.setProperty("loader.path", "nested-jars/app.jar!/foo.jar");
+		System.setProperty("loader.path", "nested-jars/nested-jar-app.jar!/BOOT-INF/classes/");
 		System.setProperty("loader.main", "demo.Application");
 		this.launcher = new PropertiesLauncher();
-		List<Archive> archives = new ArrayList<>();
-		this.launcher.getClassPathArchivesIterator().forEachRemaining(archives::add);
-		assertThat(archives).hasSize(1).areExactly(1, endingWith("foo.jar!/"));
+		assertThat(ReflectionTestUtils.getField(this.launcher, "paths").toString())
+				.isEqualTo("[nested-jars/nested-jar-app.jar!/BOOT-INF/classes/]");
+		this.launcher.launch(new String[0]);
+		waitFor("Hello World");
 	}
 
 	@Test
@@ -400,7 +401,7 @@ class PropertiesLauncherTests {
 		assertThat(bytes).isNotEmpty();
 	}
 
-	private void waitFor(String value) throws Exception {
+	private void waitFor(String value) {
 		Awaitility.waitAtMost(Duration.ofSeconds(5)).until(this.output::toString, containsString(value));
 	}
 

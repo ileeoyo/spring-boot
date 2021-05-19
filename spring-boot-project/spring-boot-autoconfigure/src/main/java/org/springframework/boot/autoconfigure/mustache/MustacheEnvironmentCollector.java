@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2019 the original author or authors.
+ * Copyright 2012-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,13 @@
 
 package org.springframework.boot.autoconfigure.mustache;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import com.samskivert.mustache.DefaultCollector;
 import com.samskivert.mustache.Mustache.Collector;
 import com.samskivert.mustache.Mustache.VariableFetcher;
-import com.samskivert.mustache.Template;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import org.springframework.context.EnvironmentAware;
 import org.springframework.core.env.ConfigurableEnvironment;
@@ -31,10 +34,15 @@ import org.springframework.core.env.Environment;
  * @author Dave Syer
  * @author Madhura Bhave
  * @since 1.2.2
+ * @deprecated since 2.5.0 for removal in 2.7.0 in favor of direct addition of values from
+ * the Environment to the model
  */
+@Deprecated
 public class MustacheEnvironmentCollector extends DefaultCollector implements EnvironmentAware {
 
 	private ConfigurableEnvironment environment;
+
+	private final VariableFetcher propertyFetcher = new PropertyVariableFetcher();
 
 	@Override
 	public void setEnvironment(Environment environment) {
@@ -43,50 +51,30 @@ public class MustacheEnvironmentCollector extends DefaultCollector implements En
 
 	@Override
 	public VariableFetcher createFetcher(Object ctx, String name) {
-		VariableFetcher nativeFetcher = super.createFetcher(ctx, name);
-		if (nativeFetcher != null) {
-			return new PropertyVariableFetcher(nativeFetcher);
+		VariableFetcher fetcher = super.createFetcher(ctx, name);
+		if (fetcher != null) {
+			return fetcher;
 		}
 		if (this.environment.containsProperty(name)) {
-			return new PropertyVariableFetcher();
+			return this.propertyFetcher;
 		}
 		return null;
 	}
 
-	/**
-	 * {@link VariableFetcher} that also checks the {@link Environment}.
-	 */
 	private class PropertyVariableFetcher implements VariableFetcher {
 
-		private final VariableFetcher nativeFetcher;
+		private final Log log = LogFactory.getLog(PropertyVariableFetcher.class);
 
-		PropertyVariableFetcher() {
-			this.nativeFetcher = null;
-		}
-
-		PropertyVariableFetcher(VariableFetcher delegate) {
-			this.nativeFetcher = delegate;
-		}
+		private final AtomicBoolean logDeprecationWarning = new AtomicBoolean();
 
 		@Override
 		public Object get(Object ctx, String name) {
-			Object result = getFromNativeFetcher(ctx, name);
-			result = (result != null) ? result : getFromEnvironment(name);
-			return (result != null) ? result : Template.NO_FETCHER_FOUND;
-		}
-
-		private Object getFromNativeFetcher(Object ctx, String name) {
-			try {
-				Object result = (this.nativeFetcher != null) ? this.nativeFetcher.get(ctx, name) : null;
-				return (result != Template.NO_FETCHER_FOUND) ? result : null;
+			String property = MustacheEnvironmentCollector.this.environment.getProperty(name);
+			if (property != null && this.logDeprecationWarning.compareAndSet(false, true)) {
+				this.log.warn("Mustache variable resolution relied upon deprecated support for falling back to the "
+						+ "Spring Environment. Please add values from the Environment directly to the model instead.");
 			}
-			catch (Exception ex) {
-				return null;
-			}
-		}
-
-		private Object getFromEnvironment(String name) {
-			return MustacheEnvironmentCollector.this.environment.getProperty(name);
+			return property;
 		}
 
 	}
